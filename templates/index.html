@@ -1,0 +1,424 @@
+{% extends "base.html" %}
+
+{% block title %}
+Black-Scholes Analytics Dashboard
+{% endblock %}
+
+{% block content %}
+
+<div class="dashboard-shell">
+
+    <div class="container-fluid px-4">
+
+        <div class="dashboard-header">
+
+            <div>
+                <h1>Black-Scholes Analytics Dashboard</h1>
+                <p>European Option Pricing • Greeks • Implied Volatility • Risk Analytics</p>
+            </div>
+
+            <div class="dashboard-tag">
+                Quant Finance Platform
+            </div>
+
+        </div>
+
+        {% if error %}
+        <div class="alert alert-danger text-center">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <div class="row g-4 mb-4">
+
+            <div class="col-xl-3 col-md-6">
+                <div class="kpi-card kpi-green">
+                    <span>Call Price</span>
+                    <h2>{% if result %}₹ {{ result.call_display }}{% else %}—{% endif %}</h2>
+                    <p>European Call Option</p>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6">
+                <div class="kpi-card kpi-orange">
+                    <span>Put Price</span>
+                    <h2>{% if result %}₹ {{ result.put_display }}{% else %}—{% endif %}</h2>
+                    <p>European Put Option</p>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6">
+                <div class="kpi-card kpi-blue">
+                    <span>Implied Volatility</span>
+                    <h2>
+                        {% if result and result.implied_volatility %}
+                            {{ result.implied_volatility }}%
+                        {% else %}
+                            —
+                        {% endif %}
+                    </h2>
+                    <p>{% if result and not result.implied_volatility %}IV Not Found{% else %}Market-Implied Risk{% endif %}</p>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6">
+                <div class="kpi-card kpi-purple">
+                    <span>Option Status</span>
+                    <h2>{% if result %}{{ result.status_short }}{% else %}—{% endif %}</h2>
+                    <p>{% if result %}{{ result.status }}{% else %}Moneyness{% endif %}</p>
+                </div>
+            </div>
+
+        </div>
+
+        {% if result and result.market_data %}
+
+        <div class="row g-4 mb-4">
+
+            <div class="col-xl-3 col-md-6">
+                <div class="kpi-card">
+                    <span>Ticker</span>
+                    <h2>{{ result.market_data.ticker }}</h2>
+                    <p>{{ result.market_data.company_name }}</p>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6">
+                <div class="kpi-card kpi-green">
+                    <span>Current Price</span>
+                    <h2>${{ result.market_data.current_price }}</h2>
+                    <p>Live Market Price</p>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6">
+                <div class="kpi-card kpi-blue">
+                    <span>Historical Vol</span>
+                    <h2>{{ result.market_data.historical_volatility }}%</h2>
+                    <p>6 Month Volatility</p>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6">
+                <div class="kpi-card {% if result.market_data.daily_return >= 0 %}kpi-green{% else %}kpi-orange{% endif %}">
+                    <span>Daily Return</span>
+                    <h2>{{ result.market_data.daily_return }}%</h2>
+                    <p>Previous Close Change</p>
+                </div>
+            </div>
+
+        </div>
+
+        {% endif %}
+
+        <div class="row g-4">
+
+            <div class="col-xl-3 col-lg-4">
+
+                <div class="glass-card input-panel">
+
+                    <h3>Input Parameters</h3>
+
+                    <form method="POST">
+
+                        <div class="mb-3">
+                            <label class="form-label">Ticker Symbol</label>
+
+                            <input
+                                type="text"
+                                class="form-control"
+                                name="ticker"
+                                placeholder="AAPL, TSLA, NVDA, MSFT">
+
+                            <small class="helper-text">
+                                Optional: Auto-fetch live market data from Yahoo Finance
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Stock Price (S)</label>
+                            <input type="number" step="any" class="form-control" name="stock" placeholder="100" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Strike Price (K)</label>
+                            <input type="number" step="any" class="form-control" name="strike" placeholder="100" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Volatility (%)</label>
+                            <input type="number" step="any" class="form-control" name="volatility" placeholder="20" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Risk-Free Rate (%)</label>
+                            <input type="number" step="any" class="form-control" name="rate" placeholder="5" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Time to Expiry</label>
+                            <input type="number" step="0.01" class="form-control" name="expiry" placeholder="1" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Market Option Price</label>
+                            <input type="number" step="any" class="form-control" name="market_price" placeholder="Optional">
+                            <small class="helper-text">Used for implied volatility</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Option Type</label>
+                            <select class="form-select" name="option">
+                                <option value="call">Call</option>
+                                <option value="put">Put</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Option Strategy</label>
+                            <select class="form-select" name="strategy">
+                                <option value="long_call">Long Call</option>
+                                <option value="long_put">Long Put</option>
+                                <option value="straddle">Long Straddle</option>
+                                <option value="bull_call_spread">Bull Call Spread</option>
+                            </select>
+                        </div>
+
+                        <button class="btn btn-primary w-100">
+                            Calculate
+                        </button>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+            <div class="col-xl-9 col-lg-8">
+
+                {% if result %}
+
+                <div class="glass-card chart-card mb-4">
+                    <div class="section-title">
+                        <h3>Option Price vs Stock Price</h3>
+                        <span>Pricing Curve</span>
+                    </div>
+                    {{ result.chart|safe }}
+                </div>
+
+                <div class="glass-card mb-4">
+                    <div class="section-title">
+                        <h3>Greeks Analytics</h3>
+                        <span>Risk Sensitivities</span>
+                    </div>
+
+                    <div class="row g-3">
+                        {% for key,value in result.greeks.items() %}
+                        <div class="col-xl-4 col-md-6">
+                            <div class="metric-card">
+                                <h6>{{ key.replace('_',' ').title() }}</h6>
+                                <h4>{{ value }}</h4>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="glass-card chart-card mb-4">
+                    <div class="section-title">
+                        <h3>Greeks Sensitivity Charts</h3>
+                        <span>Dynamic Risk Analytics</span>
+                    </div>
+
+                    <div class="row g-4">
+                        <div class="col-xl-6">{{ result.sensitivity_charts.delta|safe }}</div>
+                        <div class="col-xl-6">{{ result.sensitivity_charts.gamma|safe }}</div>
+                        <div class="col-xl-6">{{ result.sensitivity_charts.vega|safe }}</div>
+                        <div class="col-xl-6">{{ result.sensitivity_charts.theta|safe }}</div>
+                    </div>
+                </div>
+
+                <div class="glass-card chart-card mb-4">
+                    <div class="section-title">
+                        <h3>Volatility Smile</h3>
+                        <span>Strike vs Implied Volatility</span>
+                    </div>
+
+                    {{ result.volatility_smile|safe }}
+                </div>
+
+                <div class="glass-card chart-card mb-4">
+
+                    <div class="section-title">
+                        <h3>Monte Carlo Simulation</h3>
+                        <span>10,000 Simulated Terminal Prices</span>
+                    </div>
+
+                    <div class="row g-4 mb-4">
+
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <h6>MC Call Price</h6>
+                                <h4>₹ {{ result.monte_carlo.call_display }}</h4>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <h6>MC Put Price</h6>
+                                <h4>₹ {{ result.monte_carlo.put_display }}</h4>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <h6>Mean Terminal Price</h6>
+                                <h4>{{ result.monte_carlo.mean_terminal_price }}</h4>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <h6>Std Deviation</h6>
+                                <h4>{{ result.monte_carlo.std_terminal_price }}</h4>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {{ result.monte_carlo.chart|safe }}
+
+                </div>
+
+                <div class="glass-card chart-card mb-4">
+
+                    <div class="section-title">
+                        <h3>Monte Carlo Price Paths</h3>
+                        <span>100 Simulated Geometric Brownian Motion Paths</span>
+                    </div>
+
+                    {{ result.monte_carlo_paths|safe }}
+
+                </div>
+
+                <div class="glass-card mb-4">
+
+                    <div class="section-title">
+                        <h3>Model Comparison</h3>
+                        <span>Black-Scholes vs Monte Carlo</span>
+                    </div>
+
+                    <table class="table table-dark table-striped">
+
+                        <thead>
+                            <tr>
+                                <th>Model</th>
+                                <th>Call Price</th>
+                                <th>Put Price</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            <tr>
+                                <td>Black-Scholes</td>
+                                <td>₹ {{ result.call_display }}</td>
+                                <td>₹ {{ result.put_display }}</td>
+                            </tr>
+
+                            <tr>
+                                <td>Monte Carlo</td>
+                                <td>₹ {{ result.monte_carlo.call_display }}</td>
+                                <td>₹ {{ result.monte_carlo.put_display }}</td>
+                            </tr>
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+                <div class="glass-card chart-card mb-4">
+
+                    <div class="section-title">
+                        <h3>Option Strategy Builder</h3>
+                        <span>Multi-Leg Payoff Analysis</span>
+                    </div>
+
+                    {{ result.strategy_chart|safe }}
+
+                </div>
+
+                <div class="glass-card chart-card mb-4">
+                    <div class="section-title">
+                        <h3>Payoff Diagram</h3>
+                        <span>Expiry Profile</span>
+                    </div>
+                    {{ result.payoff|safe }}
+                </div>
+
+                <div class="glass-card">
+                    <div class="section-title">
+                        <h3>Input Summary</h3>
+                        <span>Model Assumptions</span>
+                    </div>
+
+                    <table class="table table-dark table-striped">
+                        <tbody>
+                            {% if result.ticker %}
+                            <tr><td>Ticker</td><td>{{ result.ticker }}</td></tr>
+                            {% endif %}
+
+                            <tr><td>Stock Price</td><td>{{ result.stock }}</td></tr>
+                            <tr><td>Strike Price</td><td>{{ result.strike }}</td></tr>
+                            <tr><td>Volatility</td><td>{{ result.volatility }}%</td></tr>
+                            <tr><td>Risk-Free Rate</td><td>{{ result.rate }}%</td></tr>
+                            <tr><td>Expiry</td><td>{{ result.expiry }} Years</td></tr>
+                            <tr><td>Selected Option</td><td>{{ result.option.title() }}</td></tr>
+                            <tr><td>Selected Strategy</td><td>{{ result.strategy.replace('_', ' ').title() }}</td></tr>
+                            <tr>
+                                <td>Market Option Price</td>
+                                <td>{% if result.market_price %}{{ result.market_price }}{% else %}Not Provided{% endif %}</td>
+                            </tr>
+                            <tr>
+                                <td>Implied Volatility</td>
+                                <td>{% if result.implied_volatility %}{{ result.implied_volatility }}%{% else %}IV Not Found{% endif %}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                {% else %}
+
+                <div class="glass-card empty-state">
+                    <h2>Run Your First Option Valuation</h2>
+                    <p>
+                        Enter market assumptions on the left to generate Black-Scholes prices,
+                        Greeks, implied volatility, volatility smile, Monte Carlo pricing,
+                        path simulation, strategy payoff analytics, and risk sensitivity charts.
+                    </p>
+
+                    <div class="empty-grid">
+                        <div><h4>Pricing</h4><span>Call & Put valuation</span></div>
+                        <div><h4>Simulation</h4><span>Monte Carlo pricing and paths</span></div>
+                        <div><h4>Strategies</h4><span>Multi-leg payoff analysis</span></div>
+                    </div>
+                </div>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+        <footer>
+            <p>
+                Built with Flask • Python • Bootstrap 5 • Plotly • Black-Scholes Model • Yahoo Finance • Monte Carlo • Strategy Builder
+            </p>
+        </footer>
+
+    </div>
+
+</div>
+
+{% endblock %}
